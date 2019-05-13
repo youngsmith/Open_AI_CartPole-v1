@@ -14,7 +14,7 @@ env._max_episode_steps = 10001
 # Constants defining our neural network
 INPUT_SIZE = env.observation_space.shape[0]
 OUTPUT_SIZE = env.action_space.n
-DISCOUNT_RATE = 0.99
+DISCOUNT_RATE = 0.999
 REPLAY_MEMORY = 50000
 BATCH_SIZE = 64
 TARGET_UPDATE_FREQUENCY = 5
@@ -39,8 +39,7 @@ def replay_train(mainDQN: dqn.DQN, targetDQN: dqn.DQN, train_batch: list, main_p
     done = np.array([x[4] for x in train_batch])
 
     X = states
-    temp = targetDQN.predict(next_states)
-    Q_target = rewards * 0.8 + DISCOUNT_RATE * np.max(temp, axis=1) * ~done
+    Q_target = rewards + DISCOUNT_RATE * np.max(targetDQN.predict(next_states), axis=1) * ~done
 
     y = mainDQN.predict(states)
     y[np.arange(len(X)), actions] = Q_target
@@ -96,7 +95,6 @@ def main():
     # store the previous observations in replay memory
     replay_buffer = deque(maxlen=REPLAY_MEMORY)
     last_100_game_reward = deque(maxlen=100)
-    #tf.reset_default_graph()
     with tf.Session() as sess:
         mainDQN = dqn.DQN(sess, INPUT_SIZE, OUTPUT_SIZE, name="main")
         targetDQN = dqn.DQN(sess, INPUT_SIZE, OUTPUT_SIZE, name="target")
@@ -106,9 +104,8 @@ def main():
         copy_ops = get_copy_var_ops(dest_scope_name="target",
                                     src_scope_name="main")
         sess.run(copy_ops)
-        prev_step = 10
         max_step = 0
-
+        prev_step = 10
         for episode in range(MAX_EPISODES):
             e = 1. / ((episode / 10) + 1)
             done = False
@@ -127,7 +124,9 @@ def main():
                 next_state, reward, done, _ = env.step(action)
 
                 if done:  # Penalty
-                    reward = -1
+                    reward = np.random.normal(loc=-0.5,scale=0.5)
+                else:
+                    reward = np.random.normal(loc=0.5,scale=0.5)
 
                 # Save the experience to our buffer
                 replay_buffer.append((state, action, reward, next_state, done))
@@ -146,17 +145,19 @@ def main():
                 max_step = step_count
 
             if abs(prev_step - step_count) > 100 or max_step * 0.9 <= step_count:
-                mainDQN.l_rate *= 0.96
+                mainDQN.l_rate *= 0.99
 
-            print("Episode: {}  steps: {} l_rate: {}".format(episode, step_count, mainDQN.l_rate))
 
             # CartPole-v0 Game Clear Checking Logic
             last_100_game_reward.append(step_count)
 
             if len(last_100_game_reward) == last_100_game_reward.maxlen:
                 avg_reward = np.mean(last_100_game_reward)
+                print("Episode: {}  steps: {} avg_reward: {}".format(episode, step_count, avg_reward))
 
-                if avg_reward > 450:
+                if avg_reward > 400:
+                    for i in range(10):
+                        bot_play(mainDQN,env)
                     print(f"Game Cleared in {episode} episodes with avg reward {avg_reward}")
                     break
 

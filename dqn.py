@@ -39,9 +39,9 @@ class DQN:
         with tf.variable_scope(self.net_name):
             self._X = tf.placeholder(tf.float32, [None, self.input_size], name="input_x")
             net = self._X
-            net = tf.layers.dense(net, h_size, activation=tf.nn.relu6, kernel_initializer=tf.contrib.layers.xavier_initializer())
-            net = tf.layers.dropout(net, rate=0.3)
-            net = tf.layers.dense(net, self.output_size, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            net = tf.layers.dense(net, 5, activation=tf.nn.relu, kernel_initializer=tf.keras.initializers.he_normal())
+            net = tf.layers.dense(net, 5, activation=tf.nn.relu, kernel_initializer=tf.keras.initializers.he_normal())
+            net = tf.layers.dense(net, self.output_size)
             self._Qpred = net
 
             self._Y = tf.placeholder(tf.float32, shape=[None, self.output_size])
